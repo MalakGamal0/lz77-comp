@@ -1,0 +1,19 @@
+# ---- project output files ----
+comp_file
+decomp_file
+
+# ---- python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ---- editors / IDEs ----
+.vscode/
+
+
