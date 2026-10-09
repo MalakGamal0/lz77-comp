@@ -6,10 +6,11 @@ from lz77 import Tag, encode, compressed_size, WINDOW, LOOK_AHEAD, NO_NEXT_CHAR,
 COMP_FILE = "comp_file"
 DECOMP_FILE = "decomp_file"
 
+
 def bits_needed(x: int) -> int:
-    if(x == 0):
+    if x == 0:
         return 1
-    return x.bit_length()   
+    return x.bit_length()
 
 
 def bits_of_text(s: str) -> int:
@@ -20,8 +21,10 @@ def bits_of_tag(t: Tag) -> int:
     bits = 1 + bits_needed(t.idx) + bits_needed(t.match_len) + 8
     return bits
 
+
 def sizeof_tags(tags: list[Tag]) -> int:
     return sum(bits_of_tag(t) for t in tags)
+
 
 def read_input(source: str) -> str:
     p = Path(source)
@@ -48,8 +51,6 @@ def parse_tags(text: str) -> list[Tag]:
     return tags
 
 
-
-
 def read_tags(source: str) -> list[Tag]:
     p = Path(source)
     if p.is_file():
@@ -65,7 +66,7 @@ def do_compress() -> None:
     write_tags(COMP_FILE, tags)
 
     before = bits_of_text(text)
-    after  = sizeof_tags(tags)
+    after = sizeof_tags(tags)
     print(f"wrote tags to {COMP_FILE}")
     print(f"before: {before} bits")
     print(f"after:  {after} bits")
@@ -75,9 +76,29 @@ def do_compress() -> None:
 
 
 def do_decompress() -> None:
+    source = input("tag file path or tag text: ").strip()
+    p = Path(source)
 
-    source = input ("tag file path or tag text: ") 
-    tags = read_tags(source)
+    if p.is_file():
+        tags = parse_tags(p.read_text())
+    else:
+        num_tags = int(input("How many tags? "))
+        tags = []
+        for i in range(num_tags):
+            tag_str = input(f"Tag {i + 1} (format: idx,match_len,additional): ").strip()
+            inner = tag_str.strip("()")
+            parts = [p.strip() for p in inner.split(",")]
+
+            idx = int(parts[0])
+            match_len = int(parts[1])
+
+            if len(parts) < 3 or not parts[2]:
+                additional = NO_NEXT_CHAR
+            else:
+                additional = parts[2]
+
+            tags.append(Tag(idx, match_len, additional))
+
     result = decode(tags)
     Path(DECOMP_FILE).write_text(result)
     print(f"wrote {len(result)} chars to {DECOMP_FILE}")
