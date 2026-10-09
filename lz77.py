@@ -17,15 +17,6 @@ class Tag:
         return f"({self.idx},{self.match_len},{self.addtional})"
 
 
-# Greedy LZ77 encoder.
-# At position i, scan the search buffer (the wind chars before i)
-# and find the longest prefix of the look-ahead buffer (a[i:]) that
-# also occurs there. Emit that match as a tag, advance i past it,
-# and repeat.
-#
-# - window (wind) : how far back we're allowed to point
-# - look-ahead    : how far forward we're allowed to match in one tag
-
 def encode(seq: Iterable[str]) -> list[Tag]:
 
     a = "".join(seq)
@@ -43,7 +34,7 @@ def encode(seq: Iterable[str]) -> list[Tag]:
         for j in range(start_window, i):
             look = LOOK_AHEAD
             k = 0
-            while (j + k < seq_len          # stop on first mismatch or look = 0
+            while (j + k < seq_len          
                    and i + k < seq_len
                    and a[j + k] == a[i + k]
                    and look):
@@ -53,7 +44,7 @@ def encode(seq: Iterable[str]) -> list[Tag]:
                 match_len = k
                 start = j
 
-        if not match_len:    # distinct char / first char
+        if not match_len:    
             t = Tag(0, 0, a[i])
         else:
             next_char = a[i + match_len] if i + match_len < seq_len else NO_NEXT_CHAR
@@ -63,6 +54,29 @@ def encode(seq: Iterable[str]) -> list[Tag]:
         i += match_len + (1 if match_len + i < seq_len else 0)
 
     return tags
+
+
+def decompress(compressed_tags):
+    decompressed_text = ""
+
+    for tag in compressed_tags:
+        if isinstance(tag, tuple):
+            position, length, next_symbol = tag
+        else:
+            position, length, next_symbol = tag.idx, tag.match_len, tag.addtional
+
+        if position == 0:
+            if next_symbol and next_symbol.lower() not in ["null", "", NO_NEXT_CHAR]:
+                decompressed_text += next_symbol
+        else:
+            for _ in range(length):
+                char_to_copy = decompressed_text[-position]
+                decompressed_text += char_to_copy
+
+            if next_symbol and next_symbol.lower() not in ["null", "", NO_NEXT_CHAR]:
+                decompressed_text += next_symbol
+
+    return decompressed_text
 
 
 def compressed_size(tags: list[Tag]) -> int:
