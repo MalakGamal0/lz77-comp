@@ -1,17 +1,16 @@
 from __future__ import annotations
 from pathlib import Path
 import math
-from lz77 import Tag, encode, compressed_size, WINDOW, LOOK_AHEAD, NO_NEXT_CHAR
+from lz77 import Tag, encode, compressed_size, WINDOW, LOOK_AHEAD, NO_NEXT_CHAR, decompress
 
 COMP_FILE = "comp_file"
 BITS_PER_CHAR = 8
 
-
-OFFSET_BITS = math.ceil(math.log2(WINDOW + 1))          # offset 1..WINDOW
-LENGTH_BITS = math.ceil(math.log2(LOOK_AHEAD + 1))      # len 1..LOOK_AHEAD
-FLAG_BITS   = 1                                         # literal vs match
-HAS_NEXT_BITS = 1                                       # next char present?
-LITERAL_BITS = FLAG_BITS + BITS_PER_CHAR                # 9
+OFFSET_BITS = math.ceil(math.log2(WINDOW + 1))
+LENGTH_BITS = math.ceil(math.log2(LOOK_AHEAD + 1))
+FLAG_BITS   = 1
+HAS_NEXT_BITS = 1
+LITERAL_BITS = FLAG_BITS + BITS_PER_CHAR
 MATCH_BITS  = FLAG_BITS + OFFSET_BITS + LENGTH_BITS + HAS_NEXT_BITS
 
 
@@ -44,6 +43,24 @@ def write_tags(path: str, tags: list[Tag]) -> None:
             f.write(t.serialize() + "\n")
 
 
+def read_tags_from_file(path: str) -> list[Tag]:
+    """تقرأ التوكنز من الملف وتحولها لـ Tag objects."""
+    tags = []
+    with open(path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+           
+            content = line.strip("()")
+            parts = content.split(",", 2)
+            idx = int(parts[0])
+            match_len = int(parts[1])
+            additional = parts[2] if len(parts) > 2 else ""
+            tags.append(Tag(idx, match_len, additional))
+    return tags
+
+
 def do_compress() -> None:
     source = input("text or file path: ")
     text = read_input(source)
@@ -61,13 +78,22 @@ def do_compress() -> None:
         print(f"compressed by: {saved / before:.2%}")
 
 
+def do_decompress() -> None:
+  
+    tags = read_tags_from_file(COMP_FILE)
+    result = decompress(tags)
+    print("\nDecompressed Text:", result)
+
+
 def main() -> None:
     while True:
-        print("\n1) compress   2) quit")
+        print("\n1) compress   2) decompress   3) quit")
         choice = input("> ").strip()
         if choice == "1":
             do_compress()
         elif choice == "2":
+            do_decompress()
+        elif choice == "3":
             return
         else:
             print("invalid choice")
