@@ -1,34 +1,27 @@
 from __future__ import annotations
 from pathlib import Path
 import math
-from lz77 import Tag, encode, compressed_size, WINDOW, LOOK_AHEAD, NO_NEXT_CHAR, decompress
+from lz77 import Tag, encode, compressed_size, WINDOW, LOOK_AHEAD, NO_NEXT_CHAR, decode
 
 COMP_FILE = "comp_file"
-BITS_PER_CHAR = 8
+DECOMP_FILE = "decomp_file"
 
-OFFSET_BITS = math.ceil(math.log2(WINDOW + 1))
-LENGTH_BITS = math.ceil(math.log2(LOOK_AHEAD + 1))
-FLAG_BITS   = 1
-HAS_NEXT_BITS = 1
-LITERAL_BITS = FLAG_BITS + BITS_PER_CHAR
-MATCH_BITS  = FLAG_BITS + OFFSET_BITS + LENGTH_BITS + HAS_NEXT_BITS
+def bits_needed(x: int) -> int:
+    if(x == 0):
+        return 1
+    return x.bit_length()   
 
 
 def bits_of_text(s: str) -> int:
-    return len(s) * BITS_PER_CHAR
+    return len(s) * 8
 
 
-def bits_of_tags(tags: list[Tag]) -> int:
-    total = 0
-    for t in tags:
-        if t.idx == 0 and t.match_len == 0:
-            total += LITERAL_BITS
-        else:
-            total += MATCH_BITS
-            if t.addtional != NO_NEXT_CHAR:
-                total += BITS_PER_CHAR
-    return total
+def bits_of_tag(t: Tag) -> int:
+    bits = 1 + bits_needed(t.idx) + bits_needed(t.match_len) + 8
+    return bits
 
+def sizeof_tags(tags: list[Tag]) -> int:
+    return sum(bits_of_tag(t) for t in tags)
 
 def read_input(source: str) -> str:
     p = Path(source)
@@ -43,22 +36,25 @@ def write_tags(path: str, tags: list[Tag]) -> None:
             f.write(t.serialize() + "\n")
 
 
-def read_tags_from_file(path: str) -> list[Tag]:
-    """تقرأ التوكنز من الملف وتحولها لـ Tag objects."""
-    tags = []
-    with open(path, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-           
-            content = line.strip("()")
-            parts = content.split(",", 2)
-            idx = int(parts[0])
-            match_len = int(parts[1])
-            additional = parts[2] if len(parts) > 2 else ""
-            tags.append(Tag(idx, match_len, additional))
+def parse_tags(text: str) -> list[Tag]:
+    tags: list[Tag] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        inner = line.strip("()")
+        idx_s, match_len_s, add = [p.strip() for p in inner.split(",", 2)]
+        tags.append(Tag(int(idx_s), int(match_len_s), add))
     return tags
+
+
+
+
+def read_tags(source: str) -> list[Tag]:
+    p = Path(source)
+    if p.is_file():
+        return parse_tags(p.read_text())
+    return parse_tags(source)
 
 
 def do_compress() -> None:
@@ -69,7 +65,7 @@ def do_compress() -> None:
     write_tags(COMP_FILE, tags)
 
     before = bits_of_text(text)
-    after  = bits_of_tags(tags)
+    after  = sizeof_tags(tags)
     print(f"wrote tags to {COMP_FILE}")
     print(f"before: {before} bits")
     print(f"after:  {after} bits")
@@ -79,10 +75,12 @@ def do_compress() -> None:
 
 
 def do_decompress() -> None:
-  
-    tags = read_tags_from_file(COMP_FILE)
-    result = decompress(tags)
-    print("\nDecompressed Text:", result)
+
+    source = input ("tag file path or tag text: ") 
+    tags = read_tags(source)
+    result = decode(tags)
+    Path(DECOMP_FILE).write_text(result)
+    print(f"wrote {len(result)} chars to {DECOMP_FILE}")
 
 
 def main() -> None:

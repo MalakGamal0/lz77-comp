@@ -2,9 +2,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-WINDOW = 256
-LOOK_AHEAD = 16
+WINDOW = 255
+LOOK_AHEAD = 15
 NO_NEXT_CHAR = '-'  # sentinel for null
+
+# Greedy LZ77 encoder.
+# At position i, scan the search buffer (the wind chars before i)
+# and find the longest prefix of the look-ahead buffer (a[i:]) that
+# also occurs there. Emit that match as a tag, advance i past it,
+# and repeat.
+#
+# - window (wind) : how far back we're allowed to point
+# - look-ahead    : how far forward we're allowed to match in one tag
+
+
 
 
 @dataclass
@@ -26,7 +37,7 @@ def encode(seq: Iterable[str]) -> list[Tag]:
     tags: list[Tag] = []
 
     i = 0
-    while i < seq_len:
+    while i < seq_len:       
         match_len = 0               
         start = 0
 
@@ -34,7 +45,7 @@ def encode(seq: Iterable[str]) -> list[Tag]:
         for j in range(start_window, i):
             look = LOOK_AHEAD
             k = 0
-            while (j + k < seq_len          
+            while (j + k < seq_len           # stop on first mismatch or look = 0
                    and i + k < seq_len
                    and a[j + k] == a[i + k]
                    and look):
@@ -44,7 +55,7 @@ def encode(seq: Iterable[str]) -> list[Tag]:
                 match_len = k
                 start = j
 
-        if not match_len:    
+        if not match_len:      # distinct char / first char
             t = Tag(0, 0, a[i])
         else:
             next_char = a[i + match_len] if i + match_len < seq_len else NO_NEXT_CHAR
@@ -56,7 +67,7 @@ def encode(seq: Iterable[str]) -> list[Tag]:
     return tags
 
 
-def decompress(compressed_tags):
+def decode(compressed_tags):
     decompressed_text = ""
 
     for tag in compressed_tags:
